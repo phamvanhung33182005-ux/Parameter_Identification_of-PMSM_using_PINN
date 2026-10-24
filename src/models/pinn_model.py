@@ -6,40 +6,36 @@ Tác giả: Phạm Văn Hùng (phamvanhung33182005-ux)
 
 import torch
 import torch.nn as nn
+import numpy as np
 from src.models.baselineMLP import BaselineMLP
 
 class PMSM_PINN(nn.Module):
-    def __init__(self, phi_m=0.23890939):
+    def __init__(self, phi_m=0.23890939, pole_pairs=4):
         super(PMSM_PINN, self).__init__()
 
-        # Sử dụng MLP làm mạng suy luận tham số cốt lõi
-        self.backbone = BaselineMLP(input_dim=7, output_dim=3)
-        # Giá trị từ thông nam châm cố định theo yêu cầu kỹ thuật
+        # Truyền rõ ràng input_dim=5 và output_dim=3
+        self.backbone = BaselineMLP(input_dim=5, output_dim=3)
         self.phi_m = phi_m
+        self.p = pole_pairs
 
     def forward(self, x):
-        # Dự đoán các tham số Rs, Ld, Lq
         params = self.backbone(x)
         return params
 
     def compute_physics_residual(self, x, params):
-        """
-        Tính toán phần dư phương trình vi phân sụt áp d-q động cơ PMSM
-        u_d = Rs * i_d + Ld * (di_d/dt) - omega_e * Lq * i_q
-        u_q = Rs * i_q + Lq * (di_q/dt) + omega_e * Ld * i_d + omega_e * phi_m
-        """
-        # Tách các thành phần đặc trưng đầu vào
-        # x: [sector, V_alpha, V_beta, V_dc, i_d, i_q, omega_e]
-        i_d = x[:, 4]
-        i_q = x[:, 5]
-        omega_e = x[:, 6]
+        # x: [ud, uq, Id, Iq, nm]
+        i_d = x[:, 2]
+        i_q = x[:, 3]
+        nm  = x[:, 4]
 
-        # Tham số ước lượng từ mạng
+        # Quy đổi tốc độ cơ (rpm) sang tốc độ góc điện omega_e (rad/s)
+        omega_e = nm * (2 * np.pi / 60) * self.p
+
         Rs_pred = params[:, 0]
         Ld_pred = params[:, 1]
         Lq_pred = params[:, 2]
 
-        # Tái tạo điện áp trên hệ tọa độ d-q ở trạng thái xác lập (di/dt = 0)
+        # Tái tạo điện áp d-q
         u_d_est = Rs_pred * i_d - omega_e * Lq_pred * i_q
         u_q_est = Rs_pred * i_q + omega_e * Ld_pred * i_d + omega_e * self.phi_m
 

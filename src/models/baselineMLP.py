@@ -8,10 +8,10 @@ import torch
 import torch.nn as nn
 
 class BaselineMLP(nn.Module):
-    def __init__(self, input_dim=7, output_dim=3):
+    def __init__(self, input_dim=5, output_dim=3):
         super(BaselineMLP, self).__init__()
 
-        # Mạng Perceptron đa lớp với hàm kích hoạt SiLU
+        # Mạng Perceptron đa lớp với 5 đặc trưng đầu vào [ud, uq, Id, Iq, nm]
         self.network = nn.Sequential(
             nn.Linear(input_dim, 64),
             nn.SiLU(),
@@ -23,5 +23,4 @@ class BaselineMLP(nn.Module):
         )
 
     def forward(self, x):
-        # x: [batch_size, 7] -> outputs: [batch_size, 3] (Rs, Ld, Lq)
         return self.network(x)
